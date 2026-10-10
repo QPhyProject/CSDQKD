@@ -216,3 +216,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+Main_File_Nest/.DS_Store
+.DS_Store
