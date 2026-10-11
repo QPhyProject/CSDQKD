@@ -1,0 +1,25 @@
+{
+  "node": "Node_E",
+  "name": "Eve Attacker Dashboard State",
+  "system_status": "MONITORING",
+  "target_channel": "shared_AB.json",
+  "active_attack_mode": "INTERCEPT_RESEND",
+  "attack_config": {
+    "interception_probability": 0.5,
+    "pns_enabled": false,
+    "detector_blinding": false
+  },
+  "attack_metrics": {
+    "packets_sniffed": 0,
+    "induced_qber": 0.0,
+    "key_bits_compromised": 0,
+    "detected": false
+  },
+  "intercept_feed": [
+    {
+      "timestamp": "2026-10-11T00:00:00Z",
+      "level": "INFO",
+      "event": "Node E interception daemon initialized"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "node": "Node_B",
+  "name": "Bob Dashboard State",
+  "system_status": "ONLINE",
+  "selected_protocol": "BB84",
+  "live_metrics": {
+    "current_qber": 0.0,
+    "key_rate_bps": 0.0,
+    "latency_ms": 0.0,
+    "total_keys_generated": 0,
+    "active_session": null
+  },
+  "channel_conditions": {
+    "fiber_length_km": 50.0,
+    "channel_loss_db": 10.0,
+    "detector_efficiency": 0.1,
+    "dark_count_rate": 0.00001
+  },
+  "decryption_status": {
+    "last_received_cipher_hex": null,
+    "decrypted_plaintext": null,
+    "verification_success": false
+  },
+  "log_history": [
+    {
+      "timestamp": "2026-10-11T00:00:00Z",
+      "level": "INFO",
+      "event": "Node B initialized and ready"
+    }
+  ]
+}
