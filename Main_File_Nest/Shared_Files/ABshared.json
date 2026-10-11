@@ -22,6 +22,7 @@
   "encrypted_transmission": {
     "sender": "Alice",
     "cipher": "AES-256-GCM",
+    "secret_key_hex": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     "nonce_hex": null,
     "ciphertext_hex": null,
     "tag_hex": null,
