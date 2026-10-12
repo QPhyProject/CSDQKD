@@ -202,12 +202,9 @@ def ckd_derive_key() -> dict:
 
     bob_public_hex = shared.get("classical_exchange", {}).get("bob_public_key_hex")
     if not bob_public_hex:
-        # Fallback check to Node_B/secretAB.json or secretCKD.json
+        # Fallback check to Node_B/secretAB.json
         b_secret = read_json(BASE_DIR / "Node_B" / "secretAB.json")
         bob_public_hex = b_secret.get("ckd", {}).get("public_key")
-        if not bob_public_hex:
-            b_ckd = read_json(BASE_DIR / "Node_B" / "secretCKD.json")
-            bob_public_hex = b_ckd.get("public_key")
 
     if not bob_public_hex:
         raise RuntimeError("Bob's classical public key is not available on the communication channel.")
@@ -528,12 +525,9 @@ def mkd_decapsulate() -> dict:
     ct_hex = shared.get("pqc_exchange", {}).get("bob_ciphertext_hex")
 
     if not ct_b64 and not ct_hex:
-        # Fallback check to Node_B/secretAB.json or secretMKD.json
+        # Fallback check to Node_B/secretAB.json
         b_secret = read_json(BASE_DIR / "Node_B" / "secretAB.json")
         ct_b64 = b_secret.get("mkd", {}).get("ciphertext")
-        if not ct_b64:
-            b_mkd = read_json(BASE_DIR / "Node_B" / "secretMKD.json")
-            ct_b64 = b_mkd.get("ciphertext")
 
     if not ct_b64 and not ct_hex:
         raise RuntimeError("Bob's post-quantum ciphertext is not available on the communication channel.")

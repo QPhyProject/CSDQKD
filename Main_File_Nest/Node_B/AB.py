@@ -202,12 +202,9 @@ def ckd_derive_key() -> dict:
 
     alice_public_hex = shared.get("classical_exchange", {}).get("alice_public_key_hex")
     if not alice_public_hex:
-        # Fallback check to Node_A/secretAB.json or secretCKD.json
+        # Fallback check to Node_A/secretAB.json
         a_secret = read_json(BASE_DIR / "Node_A" / "secretAB.json")
         alice_public_hex = a_secret.get("ckd", {}).get("public_key")
-        if not alice_public_hex:
-            a_ckd = read_json(BASE_DIR / "Node_A" / "secretCKD.json")
-            alice_public_hex = a_ckd.get("public_key")
 
     if not alice_public_hex:
         raise RuntimeError("Alice's classical public key is not available on the communication channel.")
@@ -604,12 +601,9 @@ def mkd_encapsulate() -> dict:
     pk_hex = shared.get("pqc_exchange", {}).get("alice_kem_public_key_hex")
 
     if not pk_b64 and not pk_hex:
-        # Fallback check to Node_A/secretAB.json or secretMKD.json
+        # Fallback check to Node_A/secretAB.json
         a_secret = read_json(BASE_DIR / "Node_A" / "secretAB.json")
         pk_b64 = a_secret.get("mkd", {}).get("public_key")
-        if not pk_b64:
-            a_mkd = read_json(BASE_DIR / "Node_A" / "secretMKD.json")
-            pk_b64 = a_mkd.get("public_key")
 
     if not pk_b64 and not pk_hex:
         raise RuntimeError("Alice's post-quantum public key is not available on the communication channel.")
