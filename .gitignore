@@ -219,3 +219,5 @@ __marimo__/
 Main_File_Nest/.DS_Store
 .DS_Store
 .vscode/settings.json
+logs.json
+Main_File_Nest/logs.json
