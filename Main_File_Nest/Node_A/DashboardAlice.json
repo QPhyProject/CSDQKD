@@ -14,13 +14,28 @@
     "fiber_length_km": 50.0,
     "channel_loss_db": 10.0,
     "detector_efficiency": 0.1,
-    "dark_count_rate": 0.00001
+    "dark_count_rate": 1e-05
   },
   "log_history": [
     {
       "timestamp": "2026-10-11T00:00:00Z",
       "level": "INFO",
       "event": "Node A initialized and ready"
+    },
+    {
+      "timestamp": "2026-10-12T09:48:05.705501+00:00",
+      "level": "INFO",
+      "event": "Encrypted and transmitted message of 27 bytes using AES-256-GCM"
+    },
+    {
+      "timestamp": "2026-10-12T09:48:39.634695+00:00",
+      "level": "INFO",
+      "event": "Encrypted and transmitted message of 29 bytes using AES-256-GCM"
+    },
+    {
+      "timestamp": "2026-10-12T09:48:50.461864+00:00",
+      "level": "INFO",
+      "event": "Encrypted and transmitted message of 29 bytes using AES-256-GCM"
     }
   ]
 }

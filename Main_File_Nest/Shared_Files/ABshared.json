@@ -1,8 +1,8 @@
 {
   "channel": "Alice_Bob_Shared",
   "active_protocol": "BB84",
-  "session_id": null,
-  "timestamp": null,
+  "session_id": "0b1462d954fac489",
+  "timestamp": "2026-10-12T09:48:50.462766+00:00",
   "classical_exchange": {
     "alice_public_key_hex": null,
     "bob_public_key_hex": null
@@ -23,10 +23,11 @@
     "sender": "Alice",
     "cipher": "AES-256-GCM",
     "secret_key_hex": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
-    "nonce_hex": null,
-    "ciphertext_hex": null,
-    "tag_hex": null,
-    "plaintext_preview": null,
-    "status": "IDLE"
+    "nonce_hex": "008f45a8ac08f00d40e021e6",
+    "ciphertext_hex": "bb75ac0c9e9ecdc97ed3768a2491f5183db834772a730fb12a301c72e3",
+    "tag_hex": "de9666972c158ca9396eaa05b7d35377",
+    "plaintext_preview": "Function API Test Message 123",
+    "status": "DECRYPTED",
+    "timestamp": "2026-10-12T09:48:50.461864+00:00"
   }
 }

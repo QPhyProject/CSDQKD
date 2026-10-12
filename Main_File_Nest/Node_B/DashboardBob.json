@@ -14,18 +14,28 @@
     "fiber_length_km": 50.0,
     "channel_loss_db": 10.0,
     "detector_efficiency": 0.1,
-    "dark_count_rate": 0.00001
+    "dark_count_rate": 1e-05
   },
   "decryption_status": {
-    "last_received_cipher_hex": null,
-    "decrypted_plaintext": null,
-    "verification_success": false
+    "last_received_cipher_hex": "bb75ac0c9e9ecdc97ed3768a2491f5183db834772a730fb12a301c72e3",
+    "decrypted_plaintext": "Function API Test Message 123",
+    "verification_success": true
   },
   "log_history": [
     {
       "timestamp": "2026-10-11T00:00:00Z",
       "level": "INFO",
       "event": "Node B initialized and ready"
+    },
+    {
+      "timestamp": "2026-10-12T09:48:13.181958+00:00",
+      "level": "INFO",
+      "event": "Successfully decrypted message from Alice (27 bytes) using AES-256-GCM"
+    },
+    {
+      "timestamp": "2026-10-12T09:48:50.462766+00:00",
+      "level": "INFO",
+      "event": "Successfully decrypted message from Alice (29 bytes) using AES-256-GCM"
     }
   ]
 }
