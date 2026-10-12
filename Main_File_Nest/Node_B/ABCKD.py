@@ -1,3 +1,8 @@
+import time
+import json
+from datetime import datetime
+start_time = time.perf_counter()
+start_timestamp = datetime.now().isoformat()
 
 import json
 from pathlib import Path
@@ -102,3 +107,17 @@ else:
 
     except (ValueError, TypeError) as error:
         print("Could not derive the key:", error)
+elapsed_time = time.perf_counter() - start_time
+
+data = {
+    "secret_key": shared_secret.hex(),
+    "key_distribution_time_seconds": round(elapsed_time, 6),
+    "key_distribution_started_at": start_timestamp,
+    "status": "success"
+}
+
+with open("secretOQD.json", "w") as file:
+    json.dump(data, file, indent=4)
+
+print("Shared secret saved successfully.")
+print(f"Key distribution time: {elapsed_time:.6f} seconds")
