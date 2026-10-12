@@ -1,31 +1,31 @@
 {
-  "channel": "Alice_Bob_Shared",
-  "active_protocol": "BB84",
-  "session_id": null,
-  "timestamp": null,
-  "classical_exchange": {
-    "alice_public_key_hex": null,
-    "bob_public_key_hex": null
-  },
-  "pqc_exchange": {
-    "bob_kem_public_key_hex": null,
-    "alice_ciphertext_hex": null
-  },
-  "qkd_exchange": {
-    "alice_basis_announcement": [],
-    "bob_basis_announcement": [],
-    "sifting_indices": [],
-    "error_estimation_sample_indices": [],
-    "error_estimation_sample_values": [],
-    "toeplitz_seed_hex": null
-  },
-  "encrypted_transmission": {
-    "sender": "Alice",
-    "cipher": "AES-256-GCM",
-    "nonce_hex": null,
-    "ciphertext_hex": null,
-    "tag_hex": null,
-    "plaintext_preview": null,
-    "status": "IDLE"
-  }
+    "channel": "Alice_Bob_Shared",
+    "active_protocol": "BB84",
+    "session_id": "0a767467b308d633",
+    "timestamp": "2026-10-12T15:02:17.212945",
+    "classical_exchange": {
+        "alice_public_key_hex": null,
+        "bob_public_key_hex": null
+    },
+    "pqc_exchange": {
+        "bob_kem_public_key_hex": null,
+        "alice_ciphertext_hex": null
+    },
+    "qkd_exchange": {
+        "alice_basis_announcement": [],
+        "bob_basis_announcement": [],
+        "sifting_indices": [],
+        "error_estimation_sample_indices": [],
+        "error_estimation_sample_values": [],
+        "toeplitz_seed_hex": "007cf132fdc8a6865d5e589f1f1d792303de9ceb0ff5201228b4cf22f2fea337a627a62ea15255b0f3a39c43b497570112a0e6ffb689d385aac06006d1a506f5d77693df8379808217038c8e072958bd567960c61230d028b8fad78c0dd8b3bb81aa6fafcaa941fc6c08ed32e7075c82718fa2657484a1e7320a9950aefc13a4f0e2d6cc68116d6cac13be643c1a98ad32fe78f2fe4d3932f04395bdf0f60729b9da241b56d4fc7dc3cc634dd8f1fa6a7d97f754813e19f16c119d82705294aa851fbaa50d56f1932ae9fef2d481f1280078c4a7eba8b57de65a1f5892e95478d196ca5adde276f9a24dbca4242e54690b1c945f84bab0961c19fbe0ead416eacc4ed694fceb32e1711ed430be6a17d0de92b550d01d7a7fe5993ada7951dc"
+    },
+    "encrypted_transmission": {
+        "sender": "Alice",
+        "cipher": "AES-256-GCM",
+        "nonce_hex": null,
+        "ciphertext_hex": null,
+        "tag_hex": null,
+        "plaintext_preview": null,
+        "status": "IDLE"
+    }
 }
