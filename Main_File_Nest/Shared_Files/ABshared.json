@@ -1,31 +1,31 @@
 {
-  "channel": "Alice_Bob_Shared",
-  "active_protocol": "BB84",
-  "session_id": null,
-  "timestamp": null,
-  "classical_exchange": {
-    "alice_public_key_hex": null,
-    "bob_public_key_hex": null
-  },
-  "pqc_exchange": {
-    "bob_kem_public_key_hex": null,
-    "alice_ciphertext_hex": null
-  },
-  "qkd_exchange": {
-    "alice_basis_announcement": [],
-    "bob_basis_announcement": [],
-    "sifting_indices": [],
-    "error_estimation_sample_indices": [],
-    "error_estimation_sample_values": [],
-    "toeplitz_seed_hex": null
-  },
-  "encrypted_transmission": {
-    "sender": "Alice",
-    "cipher": "AES-256-GCM",
-    "nonce_hex": null,
-    "ciphertext_hex": null,
-    "tag_hex": null,
-    "plaintext_preview": null,
-    "status": "IDLE"
-  }
+    "channel": "Alice_Bob_Shared",
+    "active_protocol": "BB84",
+    "session_id": "a79225608ecc19c6",
+    "timestamp": "2026-10-12T14:50:48.310237",
+    "classical_exchange": {
+        "alice_public_key_hex": "71101077815f1d7d888284e4ba50c6c7299c53bfbdc173ff71947ab57a64001b",
+        "bob_public_key_hex": "b240f395b26cee55174af6bb2a54511a34523c1558817ce7b04360cd852caa04"
+    },
+    "pqc_exchange": {
+        "bob_kem_public_key_hex": null,
+        "alice_ciphertext_hex": null
+    },
+    "qkd_exchange": {
+        "alice_basis_announcement": [],
+        "bob_basis_announcement": [],
+        "sifting_indices": [],
+        "error_estimation_sample_indices": [],
+        "error_estimation_sample_values": [],
+        "toeplitz_seed_hex": null
+    },
+    "encrypted_transmission": {
+        "sender": "Alice",
+        "cipher": "AES-256-GCM",
+        "nonce_hex": null,
+        "ciphertext_hex": null,
+        "tag_hex": null,
+        "plaintext_preview": null,
+        "status": "IDLE"
+    }
 }
