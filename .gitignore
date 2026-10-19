@@ -221,3 +221,9 @@ Main_File_Nest/.DS_Store
 .vscode/settings.json
 logs.json
 Main_File_Nest/logs.json
+Main_File_Nest/Node_B/secretAB.json
+Main_File_Nest/Node_A/secretAB.json
+Main_File_Nest/Shared_Files/ABshared.json
+Main_File_Nest/Node_B/secretAB.json
+Main_File_Nest/Node_A/secretAB.json
+Main_File_Nest/Shared_Files/ABshared.json
