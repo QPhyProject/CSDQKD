@@ -408,7 +408,11 @@ def run_qkd_alice(
 
     bitstring = "".join(map(str, final_bits))
     num_bytes = (len(final_bits) + 7) // 8
-    secret_key_hex = int(bitstring, 2).to_bytes(num_bytes, "big").hex()
+    raw_key_bytes = int(bitstring, 2).to_bytes(num_bytes, "big")
+    if num_bytes != 32:
+        secret_key_hex = hashlib.sha256(raw_key_bytes).hexdigest()
+    else:
+        secret_key_hex = raw_key_bytes.hex()
     iso_now = datetime.now().isoformat()
 
     # Save to secretAB.json

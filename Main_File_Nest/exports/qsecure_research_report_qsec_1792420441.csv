@@ -1,0 +1,7 @@
+experiment_id,timestamp,protocol,security_standard,key_establishment_ms,encryption_latency_ms,channel_transit_ms,decryption_latency_ms,total_latency_ms,cpu_time_ms,cpu_utilization_pct,peak_rss_kb,delta_rss_kb,verification_success
+,2026-10-19T14:34:10.038811+00:00,QKD (BB84 + Cascade + Toeplitz PA),Information-Theoretic Security (Quantum Mechanics),8302.61,2.2521,15.593,0.9191,8321.499,,,,,True
+exp_1792421970337,2026-10-19T14:59:30.337458+00:00,CKD (ECDH-X25519 + HKDF-SHA256),Classical 128-bit Security (Curve25519),9.677,1.1725,15.0,1.0766,32.5904,12.72,39.0,97296.0,2384.0,True
+exp_1792421970364,2026-10-19T14:59:30.364809+00:00,MKD (NIST ML-KEM-768 / Kyber-768),Post-Quantum Security Level 3 (AES-192 equivalent quantum hardness),3.2628,1.073,15.0,1.207,26.1792,7.14,27.3,97440.0,144.0,True
+exp_1792422128722,2026-10-19T15:02:08.722274+00:00,CKD (ECDH-X25519 + HKDF-SHA256),Classical 128-bit Security (Curve25519),9.0273,1.1046,15.0,0.8791,31.9588,12.35,38.6,95952.0,2400.0,True
+exp_1792422128750,2026-10-19T15:02:08.750363+00:00,MKD (NIST ML-KEM-768 / Kyber-768),Post-Quantum Security Level 3 (AES-192 equivalent quantum hardness),3.3048,0.9977,15.0,1.3677,27.1983,7.054,25.9,96080.0,128.0,True
+exp_1792422142115,2026-10-19T15:02:22.115906+00:00,QKD (BB84 + Cascade + Toeplitz PA),Information-Theoretic Security (Quantum Mechanics),13328.807,2.2804,15.0,1.9053,13356.616,2753.655,20.6,278416.0,182336.0,True

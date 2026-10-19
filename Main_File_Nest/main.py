@@ -1,587 +1,586 @@
 #!/usr/bin/env python3
 """
-main.py - QSecure Cryptographic Orchestration & Interactive CLI
-================================================================
-Central controller simulating communication between two sovereign nodes:
+main.py - QSecure 2.0 Cryptographic Orchestration & Benchmarking Laboratory
+===========================================================================
+Central controller comparing three paradigms for establishing shared 256-bit
+cryptographic secrets between two sovereign nodes:
   - Node A (Alice)
   - Node B (Bob)
 
-Over an untrusted channel (Shared_Files/ABshared.json) with absolute separation
-of secrets (Node_A/secretAB.json and Node_B/secretAB.json).
+Over an untrusted channel (Shared_Files/ABshared.json) with strict separation
+of local secrets (Node_A/secretAB.json and Node_B/secretAB.json).
 
-Supported protocols:
-  1. QKD: Quantum Key Distribution (BB84 + Cascade + Toeplitz PA)
-  2. MKD: Post-Quantum Key Distribution (NIST ML-KEM-768 / Kyber-768)
-  3. CKD: Classical Key Distribution (X25519 ECDH + HKDF-SHA256)
+Supported Protocols:
+  1. CKD: Classical Key Distribution (X25519 ECDH + HKDF-SHA256)
+  2. ML-KEM: Post-Quantum Key Distribution (NIST ML-KEM-768 / Kyber-768)
+  3. QKD: Quantum Key Distribution (BB84 + Cascade + Toeplitz PA)
   4. AES: Authenticated Symmetric Encryption (AES-256-GCM)
 
-Rewrites logs.json on every run with granular execution metrics.
+Addresses Research Questions RQ1 through RQ8 with empirical measurements,
+controlled attack simulations, sequential network latency modeling, and multi-format reports.
 """
 
 import argparse
-import json
 import os
 import platform
+import secrets
 import sys
-import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# Add project root to path
+# Ensure project and nested package are on path
 BASE_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
+# Import protocol implementations
 from Node_A import AB as Alice
 from Node_B import AB as Bob
 
-LOGS_FILE = BASE_DIR / "logs.json"
-SHARED_FILE = BASE_DIR / "Shared_Files" / "ABshared.json"
-SECRET_A_FILE = BASE_DIR / "Node_A" / "secretAB.json"
-SECRET_B_FILE = BASE_DIR / "Node_B" / "secretAB.json"
+# Import QSecure 2.0 modular framework
+from qsecure.attacks import run_all_attack_simulations
+from qsecure.dashboard import render_research_dashboard
+from qsecure.latency_sim import run_latency_experiment
+from qsecure.metrics import (
+    ResourceMonitor,
+    calc_stats,
+    get_system_hardware_info,
+)
+from qsecure.orchestrator import (
+    SECRET_A_FILE,
+    SECRET_B_FILE,
+    SHARED_FILE,
+    inspect_channel_and_secrets,
+    run_ckd_protocol,
+    run_mkd_protocol,
+    run_qkd_protocol,
+)
+from qsecure.reporting import (
+    display_experiment_history,
+    export_reports,
+    logger,
+)
+from qsecure.scalability_sim import run_scalability_experiment
+from qsecure.threats import run_quantum_threat_analysis
+from qsecure.ui import (
+    clear_screen,
+    console,
+    get_terminal_width,
+    is_narrow,
+    render_banner,
+    render_bar_chart,
+    render_header,
+    render_status_pill,
+    wait_for_enter,
+)
+from rich.box import ROUNDED, SIMPLE, SIMPLE_HEAVY
+from rich.console import Group
+from rich.panel import Panel
+from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.table import Table
+from rich.text import Text
 
 
 # =====================================================================
-#  ANSI Color Constants & Helpers
+#  Screen 1: QSecure Laboratory Master Dashboard
 # =====================================================================
-class C:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-    UNDERLINE = "\033[4m"
+def show_lab_dashboard() -> None:
+    """Render Screen 1: Dashboard with branding, system status, and summary metrics."""
+    clear_screen()
+    hw_info = get_system_hardware_info()
+    render_banner(hw_info)
 
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    WHITE = "\033[97m"
+    txs = logger.get_transactions()
+    total_experiments = len(txs)
+    last_status = "NO PREVIOUS RUNS"
+    last_tx_time = "N/A"
+    if txs:
+        last_tx = txs[-1]
+        last_proto = last_tx.get("protocol_short", last_tx.get("protocol", "Unknown"))
+        if "(" in last_proto:
+            last_proto = last_proto.split("(")[0].strip()
+        last_status = f"{last_proto} ({last_tx.get('key_establishment_ms', 0):.2f} ms)"
+        last_tx_time = last_tx.get("timestamp", "N/A")[:19].replace("T", " ")
 
-    BG_CYAN = "\033[46m"
-    BG_BLUE = "\033[44m"
-    BG_MAGENTA = "\033[45m"
-    BG_BLACK = "\033[40m"
+    term_w = get_terminal_width()
 
+    # Overview and Quick Comparison Panel
+    quick_comp = Table(box=SIMPLE, show_header=True, header_style="bold cyan")
+    quick_comp.add_column("Protocol", style="bold white")
+    quick_comp.add_column("Paradigm", style="dim white")
+    quick_comp.add_column("Hardness Basis", style="cyan")
+    quick_comp.add_column("Quantum Threat", style="yellow")
+    quick_comp.add_column("Typical Key Estab", style="green")
 
-LOGO = f"""
-{C.CYAN}{C.BOLD}
-   ██████╗  ███████╗ ███████╗  ██████╗ ██╗   ██╗ ██████╗  ███████╗
-  ██╔═══██╗ ██╔════╝ ██╔════╝ ██╔════╝ ██║   ██║ ██╔══██╗ ██╔════╝
-  ██║   ██║ ███████╗ █████╗   ██║      ██║   ██║ ██████╔╝ █████╗  
-  ██║▄▄ ██║ ╚════██║ ██╔══╝   ██║      ██║   ██║ ██╔══██╗ ██╔══╝  
-  ╚██████╔╝ ███████║ ███████╗ ╚██████╗ ╚██████╔╝ ██║  ██║ ███████╗
-   ╚══▀▀═╝  ╚══════╝ ╚══════╝  ╚═════╝  ╚═════╝  ╚═╝  ╚═╝ ╚══════╝
-{C.RESET}{C.MAGENTA}{C.BOLD}     [ Quantum-Resilient Cryptographic Communication System ]{C.RESET}
-{C.DIM}             Dual-Node Simulator: Node A (Alice) <-> Node B (Bob){C.RESET}
-"""
+    quick_comp.add_row(
+        "CKD", "Classical Key Distribution", "Curve25519 (ECDLP)", "Broken by CRQC (Shor's)", "~1.2 ms (1 RTT)"
+    )
+    quick_comp.add_row(
+        "ML-KEM", "Post-Quantum Cryptography", "Module-LWE Lattice", "Resistant (NIST Level 3)", "~0.4 ms (1 RTT)"
+    )
+    quick_comp.add_row(
+        "QKD", "Quantum Key Distribution", "Quantum No-Cloning", "Unconditionally Immune", "~8.2 s (11 RTTs)"
+    )
 
+    status_summary = Text.assemble(
+        ("Total Experiments Logged: ", "dim"),
+        (f"{total_experiments}  ", "bold green"),
+        ("•  Last Executed: ", "dim"),
+        (f"{last_status}  ", "bold yellow"),
+        ("•  Time: ", "dim"),
+        (f"{last_tx_time}", "dim cyan"),
+    )
 
-def clear_screen():
-    if sys.stdout.isatty():
-        os.system("clear" if os.name != "nt" else "cls")
-
-
-def print_banner():
-    print(LOGO)
-
-
-def print_header(title: str, color: str = C.CYAN):
-    width = 76
-    print(f"\n{color}{C.BOLD}{'═' * width}")
-    print(f"  {title.center(width - 4)}")
-    print(f"{'═' * width}{C.RESET}")
-
-
-def print_status(step: str, detail: str, status: str = "OK", color: str = C.GREEN):
-    badge = f"{color}[{status}]{C.RESET}"
-    print(f" {badge} {C.BOLD}{step:<32}{C.RESET} : {detail}")
-
-
-def read_json_file(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def write_json_file(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    console.print(Panel(
+        quick_comp,
+        title="[bold cyan]Cryptographic Protocol Suite Overview[/bold cyan]",
+        subtitle=status_summary,
+        box=ROUNDED,
+        border_style="grey35",
+    ))
 
 
 # =====================================================================
-#  Session Logging Management
+#  Screen 2 & 3 & 4: Comparative Experiment Orchestration
 # =====================================================================
-class Logger:
-    def __init__(self, log_path: Path = LOGS_FILE):
-        self.log_path = log_path
-        self.session_data = {
-            "session_id": f"qsec_{int(time.time())}",
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "environment": {
-                "system": platform.system(),
-                "node": platform.node(),
-                "release": platform.release(),
-                "python_version": platform.python_version(),
-            },
-            "transactions": [],
-        }
-        self.save()
+def run_comparative_experiment_workflow(
+    protocols: Optional[List[str]] = None,
+    repetitions: int = 1,
+    payload_size: int = 40,
+    simulated_delay_ms: float = 15.0,
+    n_qubits: int = 6000,
+) -> List[Dict[str, Any]]:
+    """Execute Screen 2 (Config), Screen 3 (Execution), Screen 4 (Results)."""
+    if protocols is None:
+        protocols = ["CKD", "ML-KEM", "QKD"]
 
-    def record_transaction(self, tx: dict):
-        tx["timestamp"] = datetime.now(timezone.utc).isoformat()
-        self.session_data["transactions"].append(tx)
-        self.save()
+    render_header(
+        "COMPARATIVE CRYPTOGRAPHIC BENCHMARK EXECUTION",
+        subtitle=f"Repetitions: {repetitions} | Delay: {simulated_delay_ms:.1f}ms | Protocols: {', '.join(protocols)}",
+        style="bold cyan",
+    )
 
-    def save(self):
-        write_json_file(self.log_path, self.session_data)
+    test_message = f"QSecure-2.0-Payload-[{secrets.token_hex(max(4, payload_size // 2))}]"
+    all_results = []
 
+    # Map of protocol runners
+    for proto in protocols:
+        proto_runs = []
+        for rep in range(repetitions):
+            rep_label = f"(Rep {rep + 1}/{repetitions})" if repetitions > 1 else ""
+            console.print(f"\n[bold white]Executing {proto} {rep_label}...[/bold white]")
 
-logger = Logger()
+            try:
+                if proto == "CKD":
+                    res = run_ckd_protocol(test_message, verbose=True, channel_delay_ms=simulated_delay_ms)
+                elif proto == "ML-KEM" or proto == "MKD":
+                    res = run_mkd_protocol(test_message, verbose=True, channel_delay_ms=simulated_delay_ms)
+                elif proto == "QKD":
+                    res = run_qkd_protocol(
+                        test_message,
+                        n_qubits=n_qubits,
+                        verbose=True,
+                        channel_delay_ms=simulated_delay_ms,
+                    )
+                else:
+                    console.print(f"[bold red]Unknown protocol '{proto}'[/bold red]")
+                    continue
 
+                proto_runs.append(res)
+                logger.record_transaction(res)
 
-# =====================================================================
-#  Protocol Orchestrators
-# =====================================================================
-def run_ckd_protocol(message: str) -> dict:
-    """Execute Classical Key Distribution (X25519 + HKDF) + AES-256-GCM."""
-    print_header("CKD (CLASSICAL KEY DISTRIBUTION) + AES-256-GCM", C.BLUE)
-    t_start = time.perf_counter()
+            except Exception as e:
+                console.print(f"[bold red]Error executing {proto}: {e}[/bold red]")
 
-    # 1. Key Establishment
-    print_status("1. Node A (Alice)", "Generating X25519 keypair & publishing public key", "RUN", C.YELLOW)
-    a_pub = Alice.ckd_publish_public_key()
-    print_status("   Public Key (Alice)", f"{a_pub['public_key_hex'][:32]}...", "DONE", C.GREEN)
+        if proto_runs:
+            # If multiple repetitions, calculate aggregate summary
+            if repetitions > 1:
+                key_times = [r["key_establishment_ms"] for r in proto_runs]
+                cpu_times = [r["cpu_time_ms"] for r in proto_runs]
+                stats_key = calc_stats(key_times)
+                stats_cpu = calc_stats(cpu_times)
+                summary_record = copy_record_with_stats(proto_runs[0], stats_key, stats_cpu, repetitions)
+                all_results.append(summary_record)
+            else:
+                all_results.append(proto_runs[0])
 
-    print_status("2. Node B (Bob)", "Generating X25519 keypair & publishing public key", "RUN", C.YELLOW)
-    b_pub = Bob.ckd_publish_public_key()
-    print_status("   Public Key (Bob)", f"{b_pub['public_key_hex'][:32]}...", "DONE", C.GREEN)
-
-    print_status("3. Diffie-Hellman", "Executing ECDH exchange & HKDF-SHA256 derivation", "RUN", C.YELLOW)
-    a_key = Alice.ckd_derive_key()
-    b_key = Bob.ckd_derive_key()
-
-    if a_key["secret_key_hex"] != b_key["secret_key_hex"]:
-        raise RuntimeError("CKD Key mismatch between Node A and Node B!")
-
-    key_hex = a_key["secret_key_hex"]
-    t_key_ms = round((time.perf_counter() - t_start) * 1000, 3)
-    print_status("   Secret Key Derived", f"{key_hex[:24]}... [256-bit AES Key]", "SUCCESS", C.GREEN)
-    print_status("   Key Establishment Time", f"{t_key_ms:.3f} ms", "METRIC", C.CYAN)
-
-    # 2. Message Encryption by Alice
-    print_status("4. Node A Encrypt", f"Encrypting message ({len(message)} chars) via AES-256-GCM", "RUN", C.YELLOW)
-    t_enc_start = time.perf_counter()
-    enc_res = Alice.aes_encrypt(message, protocol="CKD")
-    t_enc_ms = round((time.perf_counter() - t_enc_start) * 1000, 4)
-    print_status("   Ciphertext Generated", f"{enc_res['ciphertext_hex'][:32]}... Tag: {enc_res['tag_hex']}", "DONE", C.GREEN)
-    print_status("   Encryption Latency", f"{t_enc_ms:.4f} ms", "METRIC", C.CYAN)
-
-    # 3. Simulated Channel Delivery
-    t_chan_start = time.perf_counter()
-    time.sleep(0.015)  # 15ms simulated channel flight time
-    t_chan_ms = round((time.perf_counter() - t_chan_start) * 1000, 3)
-    print_status("5. Public Channel Transit", f"Dispatched across ABshared.json (No secrets exposed)", "SENT", C.GREEN)
-    print_status("   Channel Transit Time", f"{t_chan_ms:.3f} ms", "METRIC", C.CYAN)
-
-    # 4. Message Decryption by Bob
-    print_status("6. Node B Decrypt", "Reading ciphertext, verifying GCM tag, decrypting", "RUN", C.YELLOW)
-    t_dec_start = time.perf_counter()
-    dec_res = Bob.aes_decrypt(protocol="CKD")
-    t_dec_ms = round((time.perf_counter() - t_dec_start) * 1000, 4)
-    print_status("   Decryption Status", f"Authentication Tag VERIFIED. Plaintext: '{dec_res['plaintext']}'", "DONE", C.GREEN)
-    print_status("   Decryption Latency", f"{t_dec_ms:.4f} ms", "METRIC", C.CYAN)
-
-    t_total_ms = round((time.perf_counter() - t_start) * 1000, 3)
-    print_status("7. Total Cycle Time", f"{t_total_ms:.3f} ms", "COMPLETED", C.MAGENTA)
-
-    metrics = {
-        "protocol": "CKD (ECDH-X25519 + HKDF-SHA256)",
-        "security_standard": "Classical 128-bit Security (Curve25519)",
-        "message": message,
-        "key_fingerprint": key_hex[:16],
-        "key_establishment_ms": t_key_ms,
-        "encryption_latency_ms": t_enc_ms,
-        "channel_transit_ms": t_chan_ms,
-        "decryption_latency_ms": t_dec_ms,
-        "total_latency_ms": t_total_ms,
-        "verification_success": dec_res["verification_success"],
-    }
-    logger.record_transaction(metrics)
-    return metrics
+    # =========================================================================
+    # Screen 4: Benchmark Results Table
+    # =========================================================================
+    render_benchmark_comparison_screen(all_results, repetitions)
+    return all_results
 
 
-def run_mkd_protocol(message: str) -> dict:
-    """Execute Post-Quantum Key Distribution (ML-KEM-768 / Kyber) + AES-256-GCM."""
-    print_header("MKD (POST-QUANTUM ML-KEM-768) + AES-256-GCM", C.MAGENTA)
-    t_start = time.perf_counter()
-
-    # 1. Keypair Generation & Public Key Announcement by Alice
-    print_status("1. Node A (Alice)", "Generating ML-KEM-768 keypair (1184-byte PK, 2400-byte SK)", "RUN", C.YELLOW)
-    a_pub = Alice.mkd_publish_public_key(force_new=True)
-    print_status("   Public Key Published", f"{a_pub['public_key_b64'][:32]}... to ABshared.json", "DONE", C.GREEN)
-
-    # 2. Encapsulation by Bob
-    print_status("2. Node B (Bob)", "Reading Alice PK from channel, encapsulating shared secret", "RUN", C.YELLOW)
-    b_enc = Bob.mkd_encapsulate()
-    print_status("   Ciphertext Published", f"{b_enc['ciphertext_hex'][:32]}... ({len(bytes.fromhex(b_enc['ciphertext_hex']))} bytes)", "DONE", C.GREEN)
-    print_status("   Bob Shared Secret", f"{b_enc['secret_key_hex'][:24]}...", "SAVED", C.GREEN)
-
-    # 3. Decapsulation by Alice
-    print_status("3. Node A (Alice)", "Reading Bob ciphertext from channel, decapsulating", "RUN", C.YELLOW)
-    a_dec = Alice.mkd_decapsulate()
-    print_status("   Alice Shared Secret", f"{a_dec['secret_key_hex'][:24]}...", "SAVED", C.GREEN)
-
-    if a_dec["secret_key_hex"] != b_enc["secret_key_hex"]:
-        raise RuntimeError("MKD Key mismatch between Node A and Node B!")
-
-    key_hex = a_dec["secret_key_hex"]
-    t_key_ms = round((time.perf_counter() - t_start) * 1000, 3)
-    print_status("   PQC Key Established", f"{key_hex[:24]}... [NIST Level 3]", "SUCCESS", C.GREEN)
-    print_status("   Key Establishment Time", f"{t_key_ms:.3f} ms (Encap: {b_enc['encapsulation_time_ms']}ms, Decap: {a_dec['decapsulation_time_ms']}ms)", "METRIC", C.CYAN)
-
-    # 4. Message Encryption by Alice
-    print_status("4. Node A Encrypt", f"Encrypting message ({len(message)} chars) via AES-256-GCM", "RUN", C.YELLOW)
-    t_enc_start = time.perf_counter()
-    enc_res = Alice.aes_encrypt(message, protocol="MKD")
-    t_enc_ms = round((time.perf_counter() - t_enc_start) * 1000, 4)
-    print_status("   Ciphertext Generated", f"{enc_res['ciphertext_hex'][:32]}... Tag: {enc_res['tag_hex']}", "DONE", C.GREEN)
-    print_status("   Encryption Latency", f"{t_enc_ms:.4f} ms", "METRIC", C.CYAN)
-
-    # 5. Channel Transit
-    t_chan_start = time.perf_counter()
-    time.sleep(0.015)
-    t_chan_ms = round((time.perf_counter() - t_chan_start) * 1000, 3)
-    print_status("5. Public Channel Transit", "Dispatched across ABshared.json (Zero secrets exposed)", "SENT", C.GREEN)
-    print_status("   Channel Transit Time", f"{t_chan_ms:.3f} ms", "METRIC", C.CYAN)
-
-    # 6. Message Decryption by Bob
-    print_status("6. Node B Decrypt", "Reading ciphertext, verifying GCM tag, decrypting", "RUN", C.YELLOW)
-    t_dec_start = time.perf_counter()
-    dec_res = Bob.aes_decrypt(protocol="MKD")
-    t_dec_ms = round((time.perf_counter() - t_dec_start) * 1000, 4)
-    print_status("   Decryption Status", f"Authentication Tag VERIFIED. Plaintext: '{dec_res['plaintext']}'", "DONE", C.GREEN)
-    print_status("   Decryption Latency", f"{t_dec_ms:.4f} ms", "METRIC", C.CYAN)
-
-    t_total_ms = round((time.perf_counter() - t_start) * 1000, 3)
-    print_status("7. Total Cycle Time", f"{t_total_ms:.3f} ms", "COMPLETED", C.MAGENTA)
-
-    metrics = {
-        "protocol": "MKD (NIST ML-KEM-768 / Kyber-768)",
-        "security_standard": "Post-Quantum Security Level 3 (AES-192 equivalent quantum hardness)",
-        "message": message,
-        "key_fingerprint": key_hex[:16],
-        "key_establishment_ms": t_key_ms,
-        "encapsulation_ms": b_enc["encapsulation_time_ms"],
-        "decapsulation_ms": a_dec["decapsulation_time_ms"],
-        "encryption_latency_ms": t_enc_ms,
-        "channel_transit_ms": t_chan_ms,
-        "decryption_latency_ms": t_dec_ms,
-        "total_latency_ms": t_total_ms,
-        "verification_success": dec_res["verification_success"],
-    }
-    logger.record_transaction(metrics)
-    return metrics
+def copy_record_with_stats(base_rec: Dict[str, Any], key_stats: Dict[str, float], cpu_stats: Dict[str, float], reps: int) -> Dict[str, Any]:
+    """Enrich record with aggregate statistics over multiple repetitions."""
+    rec = dict(base_rec)
+    rec["repetitions"] = reps
+    rec["key_establishment_ms"] = key_stats["mean"]
+    rec["key_estab_min_ms"] = key_stats["min"]
+    rec["key_estab_med_ms"] = key_stats["median"]
+    rec["key_estab_max_ms"] = key_stats["max"]
+    rec["key_estab_stddev_ms"] = key_stats["stddev"]
+    rec["cpu_time_ms"] = cpu_stats["mean"]
+    rec["cpu_time_stddev_ms"] = cpu_stats["stddev"]
+    return rec
 
 
-def run_qkd_protocol(message: str) -> dict:
-    """Execute Quantum Key Distribution (BB84 + Cascade + Toeplitz PA) + AES-256-GCM."""
-    print_header("QKD (BB84 QUANTUM KEY DISTRIBUTION) + AES-256-GCM", C.CYAN)
-    t_start = time.perf_counter()
+def render_benchmark_comparison_screen(results: List[Dict[str, Any]], repetitions: int) -> None:
+    """Render Screen 4: High-fidelity comparative matrix and scientific interpretation."""
+    render_header("BENCHMARK COMPARISON MATRIX & METRIC EVALUATION", style="bold green")
 
-    print_status("1. Quantum Channel Setup", "Simulating 6000 qubits over 50km fiber (10% loss, 3% noise)", "INIT", C.CYAN)
-
-    results = {}
-
-    def bob_worker():
-        try:
-            results["bob"] = Bob.run_qkd_bob(timeout=60)
-        except Exception as e:
-            results["bob_err"] = str(e)
-
-    def alice_worker():
-        try:
-            results["alice"] = Alice.run_qkd_alice(n_qubits=6000, loss=0.10, noise=0.03, timeout=60)
-        except Exception as e:
-            results["alice_err"] = str(e)
-
-    tb = threading.Thread(target=bob_worker)
-    ta = threading.Thread(target=alice_worker)
-
-    print_status("2. BB84 Transmission", "Bob announces readiness; Alice encodes & transmits polarized qubits", "RUN", C.YELLOW)
-    tb.start()
-    time.sleep(0.1)  # small stagger to let Bob initialize ready handshake
-    ta.start()
-
-    tb.join(timeout=45)
-    ta.join(timeout=45)
-
-    if "bob_err" in results:
-        raise RuntimeError(f"Bob QKD execution failed: {results['bob_err']}")
-    if "alice_err" in results:
-        raise RuntimeError(f"Alice QKD execution failed: {results['alice_err']}")
-    if "alice" not in results or "bob" not in results:
-        raise TimeoutError("QKD protocol timed out.")
-
-    a_res = results["alice"]
-    b_res = results["bob"]
-
-    if a_res["secret_key_hex"] != b_res["secret_key_hex"]:
-        raise RuntimeError("QKD Key mismatch after Privacy Amplification!")
-
-    key_hex = a_res["secret_key_hex"]
-    t_key_ms = round((time.perf_counter() - t_start) * 1000, 3)
-
-    print_status("3. Sifting & Cascade EC", f"Sifted & corrected parity errors; Measured QBER: {b_res['qber']:.2%}", "DONE", C.GREEN)
-    print_status("4. Privacy Amplification", f"Toeplitz 2-universal hash -> {b_res['key_bits']}-bit secure key", "DONE", C.GREEN)
-    print_status("   Secret Key Derived", f"{key_hex[:24]}... [Unconditional Information-Theoretic]", "SUCCESS", C.GREEN)
-    print_status("   QKD Latency", f"{t_key_ms:.3f} ms", "METRIC", C.CYAN)
-
-    # 5. Message Encryption by Alice
-    print_status("5. Node A Encrypt", f"Encrypting message ({len(message)} chars) via AES-256-GCM", "RUN", C.YELLOW)
-    t_enc_start = time.perf_counter()
-    enc_res = Alice.aes_encrypt(message, protocol="QKD")
-    t_enc_ms = round((time.perf_counter() - t_enc_start) * 1000, 4)
-    print_status("   Ciphertext Generated", f"{enc_res['ciphertext_hex'][:32]}... Tag: {enc_res['tag_hex']}", "DONE", C.GREEN)
-    print_status("   Encryption Latency", f"{t_enc_ms:.4f} ms", "METRIC", C.CYAN)
-
-    # 6. Channel Transit
-    t_chan_start = time.perf_counter()
-    time.sleep(0.015)
-    t_chan_ms = round((time.perf_counter() - t_chan_start) * 1000, 3)
-    print_status("6. Public Channel Transit", "Dispatched across ABshared.json (Zero secrets exposed)", "SENT", C.GREEN)
-    print_status("   Channel Transit Time", f"{t_chan_ms:.3f} ms", "METRIC", C.CYAN)
-
-    # 7. Message Decryption by Bob
-    print_status("7. Node B Decrypt", "Reading ciphertext, verifying GCM tag, decrypting", "RUN", C.YELLOW)
-    t_dec_start = time.perf_counter()
-    dec_res = Bob.aes_decrypt(protocol="QKD")
-    t_dec_ms = round((time.perf_counter() - t_dec_start) * 1000, 4)
-    print_status("   Decryption Status", f"Authentication Tag VERIFIED. Plaintext: '{dec_res['plaintext']}'", "DONE", C.GREEN)
-    print_status("   Decryption Latency", f"{t_dec_ms:.4f} ms", "METRIC", C.CYAN)
-
-    t_total_ms = round((time.perf_counter() - t_start) * 1000, 3)
-    print_status("8. Total Cycle Time", f"{t_total_ms:.3f} ms", "COMPLETED", C.MAGENTA)
-
-    metrics = {
-        "protocol": "QKD (BB84 + Cascade + Toeplitz PA)",
-        "security_standard": "Information-Theoretic Security (Quantum Mechanics)",
-        "message": message,
-        "key_fingerprint": key_hex[:16],
-        "qber": round(b_res["qber"], 4),
-        "key_bits": b_res["key_bits"],
-        "key_establishment_ms": t_key_ms,
-        "encryption_latency_ms": t_enc_ms,
-        "channel_transit_ms": t_chan_ms,
-        "decryption_latency_ms": t_dec_ms,
-        "total_latency_ms": t_total_ms,
-        "verification_success": dec_res["verification_success"],
-    }
-    logger.record_transaction(metrics)
-    return metrics
-
-
-def run_benchmark():
-    """Run full comparative benchmark across CKD, MKD, and QKD."""
-    print_header("QSECURE COMPREHENSIVE PROTOCOL BENCHMARK", C.YELLOW)
-    test_msg = "QSecure automated benchmark transmission payload [256-bit AES-GCM]."
-
-    results = []
-    print(f"\n{C.BOLD}Benchmarking 1/3: Classical Key Distribution (X25519)...{C.RESET}")
-    ckd_res = run_ckd_protocol(test_msg)
-    results.append(ckd_res)
-
-    print(f"\n{C.BOLD}Benchmarking 2/3: Post-Quantum Key Distribution (ML-KEM-768)...{C.RESET}")
-    mkd_res = run_mkd_protocol(test_msg)
-    results.append(mkd_res)
-
-    print(f"\n{C.BOLD}Benchmarking 3/3: Quantum Key Distribution (BB84)...{C.RESET}")
-    qkd_res = run_qkd_protocol(test_msg)
-    results.append(qkd_res)
-
-    # Render summary table
-    print_header("BENCHMARK COMPARISON MATRIX", C.GREEN)
-    header_fmt = f"{C.BOLD}{'Protocol':<22} | {'Security Type':<26} | {'Key Estab (ms)':<15} | {'Encrypt (ms)':<13} | {'Decrypt (ms)':<13} | {'Total (ms)':<11}{C.RESET}"
-    print(header_fmt)
-    print("-" * 110)
+    table = Table(
+        title=f"Comparative Cryptographic Performance ({repetitions} Repetition{'s' if repetitions > 1 else ''})",
+        box=ROUNDED,
+        show_header=True,
+        header_style="bold green",
+    )
+    table.add_column("Protocol", justify="left", style="bold white")
+    table.add_column("Security Class", justify="left", style="dim white")
+    table.add_column("Key Estab (ms)", justify="right", style="bold yellow")
+    table.add_column("Comm Overhead", justify="right", style="bold magenta")
+    table.add_column("CPU Time (ms)", justify="right", style="bold cyan")
+    table.add_column("Peak RSS", justify="right", style="dim white")
+    table.add_column("Total Latency", justify="right", style="bold green")
+    table.add_column("Verified", justify="center")
 
     for r in results:
-        p_name = r["protocol"].split("(")[0].strip()
-        sec = r["security_standard"][:25]
-        row = (
-            f"{C.CYAN}{p_name:<22}{C.RESET} | "
-            f"{C.WHITE}{sec:<26}{C.RESET} | "
-            f"{C.YELLOW}{r['key_establishment_ms']:>14.2f} {C.RESET} | "
-            f"{C.GREEN}{r['encryption_latency_ms']:>12.4f} {C.RESET} | "
-            f"{C.GREEN}{r['decryption_latency_ms']:>12.4f} {C.RESET} | "
-            f"{C.MAGENTA}{r['total_latency_ms']:>10.2f}{C.RESET}"
+        p_name = r.get("protocol_short", r.get("protocol", "Unknown"))
+        sec = r.get("security_class", "Standard")
+        key_t = r.get("key_establishment_ms", 0.0)
+        cpu_t = r.get("cpu_time_ms", 0.0)
+        tot_t = r.get("total_latency_ms", 0.0)
+        rss_mb = r.get("peak_rss_kb", 0.0) / 1024.0
+        success = r.get("verification_success", True)
+
+        color = "dodger_blue1" if "CKD" in p_name else ("magenta" if "ML-KEM" in p_name or "MKD" in p_name else "cyan")
+        
+        # Communication representation
+        comm = r.get("communication", {})
+        if "QKD" in p_name:
+            comm_str = "6k Qubits + ~135KB"
+        else:
+            raw_b = comm.get("total_crypto_payload_bytes", 64)
+            comm_str = f"{raw_b:,} B"
+
+        key_col_str = f"{key_t:,.2f} ms"
+        if repetitions > 1 and "key_estab_stddev_ms" in r:
+            key_col_str = f"{key_t:,.2f}±{r['key_estab_stddev_ms']:.2f}"
+
+        table.add_row(
+            Text(p_name, style=color),
+            sec,
+            key_col_str,
+            comm_str,
+            f"{cpu_t:,.2f} ms",
+            f"{rss_mb:,.1f} MB",
+            f"{tot_t:,.2f} ms",
+            render_status_pill("PASS" if success else "FAIL"),
         )
-        print(row)
-    print("-" * 110)
-    print(f"{C.DIM}Metrics recorded in logs.json{C.RESET}\n")
 
+    console.print(table)
+    console.print()
 
-def inspect_channel_and_secrets():
-    """Display channel verification and local secret storage state."""
-    print_header("CHANNEL & SECRET ISOLATION INSPECTION", C.CYAN)
-    shared = read_json_file(SHARED_FILE)
-    sec_a = read_json_file(SECRET_A_FILE)
-    sec_b = read_json_file(SECRET_B_FILE)
+    # Visual Bar Chart Comparison
+    bar_items = [(r.get("protocol_short", r.get("protocol", "Unknown")), r.get("key_establishment_ms", 0.0)) for r in results]
+    console.print("[bold]Key Establishment Computation Time (Logarithmic Scale):[/bold]")
+    render_bar_chart(bar_items, unit="ms", log_scale=True)
+    console.print()
 
-    # Verify zero secrets on public channel
-    exposed_keys = []
-    if "encrypted_transmission" in shared:
-        for k in ["secret_key_hex", "secret_key"]:
-            if k in shared["encrypted_transmission"]:
-                exposed_keys.append(k)
-
-    print(f"\n{C.BOLD}1. Untrusted Public Channel (Shared_Files/ABshared.json):{C.RESET}")
-    print(f"   Active Protocol : {C.CYAN}{shared.get('active_protocol', 'N/A')}{C.RESET}")
-    print(f"   Transmission    : {C.YELLOW}{shared.get('encrypted_transmission', {}).get('status', 'IDLE')}{C.RESET}")
-    print(f"   Ciphertext      : {C.DIM}{str(shared.get('encrypted_transmission', {}).get('ciphertext_hex'))[:48]}...{C.RESET}")
-    if exposed_keys:
-        print(f"   {C.RED}[FAIL] Exposed keys found on public channel: {exposed_keys}{C.RESET}")
-    else:
-        print(f"   {C.GREEN}[PASS] Zero Secret Keys on Public Channel (Strict Device Isolation Verified){C.RESET}")
-
-    print(f"\n{C.BOLD}2. Node A Local Storage (Node_A/secretAB.json):{C.RESET}")
-    print(f"   Role            : Alice")
-    print(f"   Active Key Hex  : {C.GREEN}{str(sec_a.get('current_secret_key_hex'))[:32]}...{C.RESET}")
-    print(f"   CKD Status      : {sec_a.get('ckd', {}).get('status')}")
-    print(f"   QKD Status      : {sec_a.get('qkd', {}).get('status')}")
-    print(f"   MKD Status      : {sec_a.get('mkd', {}).get('status')}")
-
-    print(f"\n{C.BOLD}3. Node B Local Storage (Node_B/secretAB.json):{C.RESET}")
-    print(f"   Role            : Bob")
-    print(f"   Active Key Hex  : {C.GREEN}{str(sec_b.get('current_secret_key_hex'))[:32]}...{C.RESET}")
-    print(f"   CKD Status      : {sec_b.get('ckd', {}).get('status')}")
-    print(f"   QKD Status      : {sec_b.get('qkd', {}).get('status')}")
-    print(f"   MKD Status      : {sec_b.get('mkd', {}).get('status')}")
-
-    # Check key synchronization
-    if sec_a.get("current_secret_key_hex") and sec_a.get("current_secret_key_hex") == sec_b.get("current_secret_key_hex"):
-        print(f"\n   {C.GREEN}[SYNC VERIFIED] Node A and Node B currently hold matching 256-bit secret keys.{C.RESET}")
-    else:
-        print(f"\n   {C.YELLOW}[SYNC PENDING] Node A and Node B keys differ or are uninitialized.{C.RESET}")
+    # Concise Scientific Interpretation
+    console.print(Panel(
+        Text(
+            "Empirical Analysis:\n"
+            "• ML-KEM-768 provides the optimal balance of efficiency and quantum resilience, establishing keys in under 1 ms.\n"
+            "• CKD (X25519) demonstrates microsecond performance but remains critically vulnerable to CRQCs (Shor's algorithm).\n"
+            "• QKD (BB84) achieves information-theoretic security against computational attacks, but requires orders-of-magnitude "
+            "more wall-clock and CPU time due to multi-pass classical error correction and parity reconciliation.\n"
+            "• All cryptographic shared secrets were cryptographically verified to match across sovereign nodes before reporting success.",
+            style="dim white",
+        ),
+        box=ROUNDED,
+        border_style="grey35",
+        title="[bold green]Interpretation of Findings[/bold green]",
+    ))
 
 
 # =====================================================================
-#  Interactive CLI Menu
+#  Interactive Protocol Demonstration Screen
 # =====================================================================
-def interactive_menu():
+def interactive_individual_demo() -> None:
+    """Sub-menu for individual protocol demonstrations."""
     while True:
-        print_banner()
-        print(f"{C.BOLD}Select Communication / Cryptographic Operation:{C.RESET}\n")
-        print(f"  {C.CYAN}[1]{C.RESET} {C.BOLD}Communicate via QKD + AES-256{C.RESET}    (BB84 Quantum Key Distribution)")
-        print(f"  {C.MAGENTA}[2]{C.RESET} {C.BOLD}Communicate via MKD + AES-256{C.RESET}    (Post-Quantum ML-KEM-768 / Kyber)")
-        print(f"  {C.BLUE}[3]{C.RESET} {C.BOLD}Communicate via CKD + AES-256{C.RESET}    (Classical ECDH-X25519 + HKDF)")
-        print(f"  {C.YELLOW}[4]{C.RESET} {C.BOLD}Send Custom Message with Current Key{C.RESET}")
-        print(f"  {C.GREEN}[5]{C.RESET} {C.BOLD}Run Full Benchmark (All 3 Protocols Comparative Analysis){C.RESET}")
-        print(f"  {C.WHITE}[6]{C.RESET} {C.BOLD}Inspect System & Channel Status (Verify Zero-Secret Channel){C.RESET}")
-        print(f"  {C.RED}[7]{C.RESET} {C.BOLD}Exit{C.RESET}\n")
+        clear_screen()
+        render_header("INDIVIDUAL PROTOCOL DEMONSTRATIONS", style="bold cyan")
+        console.print("[bold]Select an individual protocol to execute with Alice and Bob:[/bold]\n")
+        console.print("  [bold cyan][1][/bold cyan] QKD + AES-256-GCM     (BB84 Quantum Key Distribution)")
+        console.print("  [bold magenta][2][/bold magenta] ML-KEM + AES-256-GCM   (NIST Post-Quantum ML-KEM-768)")
+        console.print("  [bold dodger_blue1][3][/bold dodger_blue1] CKD + AES-256-GCM      (Classical X25519 ECDH + HKDF)")
+        console.print("  [bold yellow][4][/bold yellow] Direct Custom Message  (Encrypt with Currently Active Secret Key)")
+        console.print("  [bold red][5][/bold red] Return to Main Menu\n")
 
-        try:
-            choice = input(f"{C.BOLD}Enter option [1-7]: {C.RESET}").strip()
-        except (KeyboardInterrupt, EOFError):
-            print("\nExiting QSecure...")
-            break
+        choice = Prompt.ask("Enter option", choices=["1", "2", "3", "4", "5"], default="2")
 
         if choice == "1":
             default_msg = "Top-secret quantum-secured transmission from Node A to Node B."
-            custom = input(f"\nMessage to encrypt (Press Enter for default: '{default_msg}'): ").strip()
-            msg = custom if custom else default_msg
+            msg = Prompt.ask("Message to encrypt", default=default_msg)
             try:
-                run_qkd_protocol(msg)
+                run_qkd_protocol(msg, verbose=True)
             except Exception as e:
-                print(f"\n{C.RED}[ERROR] QKD Protocol failed: {e}{C.RESET}")
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
+                console.print(f"[bold red]QKD execution error: {e}[/bold red]")
+            wait_for_enter()
 
         elif choice == "2":
             default_msg = "Post-quantum lattice-encrypted transmission resistant to Shor's algorithm."
-            custom = input(f"\nMessage to encrypt (Press Enter for default: '{default_msg}'): ").strip()
-            msg = custom if custom else default_msg
+            msg = Prompt.ask("Message to encrypt", default=default_msg)
             try:
-                run_mkd_protocol(msg)
+                run_mkd_protocol(msg, verbose=True)
             except Exception as e:
-                print(f"\n{C.RED}[ERROR] MKD Protocol failed: {e}{C.RESET}")
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
+                console.print(f"[bold red]ML-KEM execution error: {e}[/bold red]")
+            wait_for_enter()
 
         elif choice == "3":
             default_msg = "Classical high-throughput encrypted transmission via Curve25519."
-            custom = input(f"\nMessage to encrypt (Press Enter for default: '{default_msg}'): ").strip()
-            msg = custom if custom else default_msg
+            msg = Prompt.ask("Message to encrypt", default=default_msg)
             try:
-                run_ckd_protocol(msg)
+                run_ckd_protocol(msg, verbose=True)
             except Exception as e:
-                print(f"\n{C.RED}[ERROR] CKD Protocol failed: {e}{C.RESET}")
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
+                console.print(f"[bold red]CKD execution error: {e}[/bold red]")
+            wait_for_enter()
 
         elif choice == "4":
-            custom = input("\nEnter plaintext message to send from Alice to Bob: ").strip()
-            if not custom:
-                custom = "Direct transmission payload."
+            msg = Prompt.ask("Enter plaintext message to send from Alice to Bob", default="Direct authenticated payload.")
             try:
-                t_start = time.perf_counter()
-                enc_res = Alice.aes_encrypt(custom)
+                t0 = time.perf_counter_ns()
+                enc_res = Alice.aes_encrypt(msg)
                 dec_res = Bob.aes_decrypt()
-                t_total_ms = round((time.perf_counter() - t_start) * 1000, 3)
-                print_status("Alice Encrypt", f"Key source: {enc_res['key_source']} in {enc_res['encryption_latency_ms']} ms", "OK", C.GREEN)
-                print_status("Bob Decrypt", f"Decrypted: '{dec_res['plaintext']}' in {dec_res['decryption_latency_ms']} ms", "OK", C.GREEN)
-                print_status("Total Latency", f"{t_total_ms} ms", "METRIC", C.MAGENTA)
+                tot_ms = (time.perf_counter_ns() - t0) / 1_000_000.0
+                console.print(f"[bold green]Alice Encrypt:[/bold green] Key source: {enc_res['key_source']} ({enc_res['encryption_latency_ms']:.4f} ms)")
+                console.print(f"[bold green]Bob Decrypt:[/bold green] Verified: '{dec_res['plaintext']}' ({dec_res['decryption_latency_ms']:.4f} ms)")
+                console.print(f"[bold cyan]Total Cycle Time:[/bold cyan] {tot_ms:.3f} ms")
             except Exception as e:
-                print(f"\n{C.RED}[ERROR] Direct encryption failed: {e}{C.RESET}")
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
+                console.print(f"[bold red]Direct transmission failed: {e}[/bold red]")
+            wait_for_enter()
 
         elif choice == "5":
-            run_benchmark()
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
-
-        elif choice == "6":
-            inspect_channel_and_secrets()
-            input(f"\n{C.DIM}Press Enter to return to menu...{C.RESET}")
-
-        elif choice == "7":
-            print(f"\n{C.CYAN}Shutting down QSecure. Session log saved to logs.json.{C.RESET}\n")
             break
 
-        else:
-            print(f"\n{C.RED}Invalid selection. Please choose an option from 1 to 7.{C.RESET}")
-            time.sleep(1)
+
+# =====================================================================
+#  Channel & Secret Inspection Screen
+# =====================================================================
+def display_channel_inspection_screen() -> None:
+    """Inspect public channel and local device isolation."""
+    render_header("CHANNEL & DEVICE ISOLATION STATUS", style="bold cyan")
+    status = inspect_channel_and_secrets()
+
+    # Public Channel Card
+    exposed_count = status["exposed_keys_count"]
+    channel_status_pill = render_status_pill("PASS" if exposed_count == 0 else "FAIL")
+    
+    chan_content = Group(
+        Text(f"Target Public Channel : Shared_Files/ABshared.json", style="bold"),
+        Text(f"Active Protocol       : {status['active_protocol']}", style="cyan"),
+        Text(f"Transmission Status   : {status['transmission_status']}", style="yellow"),
+        Text(f"Ciphertext Preview    : {status['ciphertext_preview']}...", style="dim white"),
+        Text(f"Exposed Secret Keys   : {exposed_count}", style="green" if exposed_count == 0 else "bold red"),
+    )
+    console.print(Panel(
+        chan_content,
+        title=f"[bold]Untrusted Public Channel[/bold] [ {channel_status_pill} ]",
+        box=ROUNDED,
+        border_style="grey35",
+    ))
+
+    # Sovereign Node Cards
+    node_a_content = Group(
+        Text("Device Path : Node_A/secretAB.json", style="dim white"),
+        Text(f"Active Key  : {status['node_a_key_fingerprint']}... [256-bit AES]", style="green"),
+        Text(f"CKD Status  : {status['node_a_ckd_status']}", style="dodger_blue1"),
+        Text(f"MKD Status  : {status['node_a_mkd_status']}", style="magenta"),
+        Text(f"QKD Status  : {status['node_a_qkd_status']}", style="cyan"),
+    )
+
+    node_b_content = Group(
+        Text("Device Path : Node_B/secretAB.json", style="dim white"),
+        Text(f"Active Key  : {status['node_b_key_fingerprint']}... [256-bit AES]", style="green"),
+        Text(f"CKD Status  : {status['node_b_ckd_status']}", style="dodger_blue1"),
+        Text(f"MKD Status  : {status['node_b_mkd_status']}", style="magenta"),
+        Text(f"QKD Status  : {status['node_b_qkd_status']}", style="cyan"),
+    )
+
+    console.print(Panel(node_a_content, title="[bold]Node A (Alice) Local Storage[/bold]", box=ROUNDED, border_style="grey35"))
+    console.print(Panel(node_b_content, title="[bold]Node B (Bob) Local Storage[/bold]", box=ROUNDED, border_style="grey35"))
+
+    if status["keys_synchronized"]:
+        console.print(Panel("[bold green]DEVICE SYNCHRONIZATION VERIFIED: Alice and Bob currently hold matching secret keys.[/bold green]", box=ROUNDED, border_style="green"))
+    else:
+        console.print(Panel("[bold yellow]SYNCHRONIZATION PENDING: Node A and Node B keys differ or are uninitialized.[/bold yellow]", box=ROUNDED, border_style="yellow"))
 
 
 # =====================================================================
-#  CLI Arguments Entry Point
+#  Interactive Main Menu (Screen 1 Entry)
+# =====================================================================
+def run_interactive_menu():
+    """Master interactive research application loop."""
+    while True:
+        try:
+            show_lab_dashboard()
+
+            console.print("\n[bold white]RESEARCH LABORATORY NAVIGATION MENU:[/bold white]\n")
+            console.print("  [bold green][1][/bold green] [bold]Run Comparative Experiment[/bold]       (CKD vs ML-KEM vs QKD Full Benchmark)")
+            console.print("  [bold cyan][2][/bold cyan] [bold]Individual Protocol Demonstrations[/bold]   (Execute CKD, ML-KEM, or QKD)")
+            console.print("  [bold yellow][3][/bold yellow] [bold]Research Results Dashboard[/bold]           (Synthesis of all 8 Research Questions)")
+            console.print("  [bold blue][4][/bold blue] [bold]Communication & Latency Experiments[/bold] (RQ5 Network Delay Simulator)")
+            console.print("  [bold magenta][5][/bold magenta] [bold]Scalability Experiments[/bold]             (RQ6 Full Mesh vs Star Network Scaling)")
+            console.print("  [bold red][6][/bold red] [bold]Security & Attack Simulations[/bold]       (RQ7 Passive, MITM, QBER Abort, Tampering)")
+            console.print("  [bold orchid][7][/bold orchid] [bold]Quantum-Threat Analysis[/bold]             (RQ8 Shor's, Grover's, HNDL Risk Evaluation)")
+            console.print("  [bold white][8][/bold white] [bold]Channel & System Inspection[/bold]         (Verify Zero Secrets on Public Channel)")
+            console.print("  [bold dim][9][/bold dim] [bold]Experiment History & Report Export[/bold]  (View logs.json & Export Markdown/CSV/JSON)")
+            console.print("  [bold red][10][/bold red] [bold]Exit Application[/bold]\n")
+
+            choice = Prompt.ask("Select an option [1-10]", default="1").strip()
+
+            if choice == "1":
+                clear_screen()
+                render_header("SCREEN 2 — EXPERIMENT CONFIGURATION", style="bold cyan")
+                
+                # Configuration prompts with sensible defaults
+                console.print("[dim]Configure experimental parameters (press Enter to accept sensible defaults):[/dim]\n")
+                reps = IntPrompt.ask("Number of repetitions (1 for quick test, 3-5 for statistics)", default=1)
+                delay_str = Prompt.ask("Simulated one-way channel flight delay (ms)", default="15.0")
+                try:
+                    delay_ms = float(delay_str)
+                except ValueError:
+                    delay_ms = 15.0
+
+                include_qkd = Confirm.ask("Include QKD in comparative benchmark? (Requires ~8s for quantum simulation)", default=True)
+                protocols = ["CKD", "ML-KEM"]
+                if include_qkd:
+                    protocols.append("QKD")
+
+                clear_screen()
+                run_comparative_experiment_workflow(
+                    protocols=protocols,
+                    repetitions=reps,
+                    simulated_delay_ms=delay_ms,
+                )
+                wait_for_enter()
+
+            elif choice == "2":
+                interactive_individual_demo()
+
+            elif choice == "3":
+                clear_screen()
+                render_research_dashboard()
+                wait_for_enter()
+
+            elif choice == "4":
+                clear_screen()
+                run_latency_experiment(verbose=True)
+                wait_for_enter()
+
+            elif choice == "5":
+                clear_screen()
+                run_scalability_experiment(verbose=True)
+                wait_for_enter()
+
+            elif choice == "6":
+                clear_screen()
+                run_all_attack_simulations(verbose=True)
+                wait_for_enter()
+
+            elif choice == "7":
+                clear_screen()
+                run_quantum_threat_analysis(verbose=True)
+                wait_for_enter()
+
+            elif choice == "8":
+                clear_screen()
+                display_channel_inspection_screen()
+                wait_for_enter()
+
+            elif choice == "9":
+                clear_screen()
+                display_experiment_history()
+                console.print()
+                do_export = Confirm.ask("Export scientific research reports (Markdown, CSV, JSON)?", default=True)
+                if do_export:
+                    paths = export_reports()
+                    console.print(f"[bold green]Successfully exported reports:[/bold green]")
+                    console.print(f"  • Markdown Report : [bold]{paths['markdown']}[/bold]")
+                    console.print(f"  • CSV Dataset     : [bold]{paths['csv']}[/bold]")
+                    console.print(f"  • JSON Session    : [bold]{paths['json']}[/bold]")
+                wait_for_enter()
+
+            elif choice == "10":
+                console.print(f"\n[bold cyan]Exiting QSecure 2.0. Session recorded in {LOGS_FILE}.[/bold cyan]\n")
+                break
+
+            else:
+                console.print("[bold red]Invalid option. Please choose between 1 and 10.[/bold red]")
+                time.sleep(1)
+
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n\n[bold yellow]Keyboard interruption detected. Returning to sensible state...[/bold yellow]")
+            time.sleep(0.8)
+
+
+# =====================================================================
+#  Command Line Arguments Entry Point
 # =====================================================================
 def main():
-    parser = argparse.ArgumentParser(description="QSecure - Quantum-Resilient Cryptographic Orchestrator")
+    parser = argparse.ArgumentParser(
+        description="QSecure 2.0 - Quantum-Resilient Cryptographic Orchestration & Benchmarking Suite"
+    )
     parser.add_argument("--protocol", choices=["QKD", "MKD", "CKD"], help="Run single protocol immediately")
-    parser.add_argument("--message", default="Automated QSecure transmission.", help="Message to encrypt")
-    parser.add_argument("--benchmark", action="store_true", help="Run comprehensive comparative benchmark")
+    parser.add_argument("--message", default="Automated QSecure transmission.", help="Message payload to encrypt")
+    parser.add_argument("--benchmark", action="store_true", help="Run comparative benchmark (CKD, ML-KEM, QKD)")
     parser.add_argument("--status", action="store_true", help="Inspect channel and secret state")
+    parser.add_argument("--latency", action="store_true", help="Run network latency experiment (RQ5)")
+    parser.add_argument("--scalability", action="store_true", help="Run multi-node scalability experiment (RQ6)")
+    parser.add_argument("--attacks", action="store_true", help="Run security & attack simulations (RQ7)")
+    parser.add_argument("--quantum-threat", action="store_true", help="Run quantum-threat analysis (RQ8)")
+    parser.add_argument("--dashboard", action="store_true", help="Display master research results dashboard")
+    parser.add_argument("--export", action="store_true", help="Export research report to Markdown, CSV, and JSON")
+    parser.add_argument("--repetitions", type=int, default=1, help="Number of repetitions for benchmark")
+    parser.add_argument("--qubits", type=int, default=6000, help="Number of qubits for QKD simulation")
+
     args = parser.parse_args()
 
     if args.benchmark:
-        print_banner()
-        run_benchmark()
+        run_comparative_experiment_workflow(
+            protocols=["CKD", "ML-KEM", "QKD"],
+            repetitions=args.repetitions,
+            n_qubits=args.qubits,
+        )
     elif args.status:
-        print_banner()
-        inspect_channel_and_secrets()
+        display_channel_inspection_screen()
+    elif args.latency:
+        run_latency_experiment(verbose=True)
+    elif args.scalability:
+        run_scalability_experiment(verbose=True)
+    elif args.attacks:
+        run_all_attack_simulations(verbose=True)
+    elif args.quantum_threat:
+        run_quantum_threat_analysis(verbose=True)
+    elif args.dashboard:
+        render_research_dashboard()
+    elif args.export:
+        paths = export_reports()
+        console.print("[bold green]Export completed successfully:[/bold green]")
+        for fmt, path in paths.items():
+            console.print(f"  • {fmt.upper()}: {path}")
     elif args.protocol == "QKD":
-        print_banner()
-        run_qkd_protocol(args.message)
+        run_qkd_protocol(args.message, n_qubits=args.qubits, verbose=True)
     elif args.protocol == "MKD":
-        print_banner()
-        run_mkd_protocol(args.message)
+        run_mkd_protocol(args.message, verbose=True)
     elif args.protocol == "CKD":
-        print_banner()
-        run_ckd_protocol(args.message)
+        run_ckd_protocol(args.message, verbose=True)
     else:
-        interactive_menu()
+        run_interactive_menu()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+# QSecure 2.0 Dependencies
+# ========================
+# Cryptographic primitives:
+cryptography>=42.0.0       # X25519 ECDH, HKDF-SHA256, AES-256-GCM
+pqcrypto>=1.0.0           # NIST ML-KEM-768 (Kyber-768) post-quantum KEM
+qiskit>=1.0.0             # Quantum circuits for BB84 state preparation
+qiskit-aer>=0.14.0        # Quantum simulator for Bob's measurements
+
+# Terminal UI & Performance Benchmarking:
+rich>=13.0.0              # Modern responsive terminal interface, tables & formatting
+psutil>=5.9.0             # System CPU and memory RSS resource profiling
