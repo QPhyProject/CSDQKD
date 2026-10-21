@@ -34,7 +34,7 @@
 
 </div>
 
-## 📌 Executive Overview
+## Executive Overview
 
 **QSecure** is an empirical cryptographic testbed and comparative research laboratory designed to evaluate three fundamentally distinct paradigms for establishing shared 256-bit symmetric secrets between two sovereign communicating nodes — **Node A (Alice)** and **Node B (Bob)** — over an unauthenticated, untrusted public transmission bus, followed by authenticated symmetric payload encryption via **AES-256-GCM**:
 
@@ -44,7 +44,7 @@
 
 ---
 
-## ⚡ Cryptographic Paradigms Under Test
+## Cryptographic Paradigms Under Test
 
 | Paradigm / Protocol | Underlying Mathematical / Physical Principle | Key Establishment Latency | Public Channel Overhead | Sequential Round Trips (RTT) | Quantum Threat Resistance | Physical Infrastructure |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -54,7 +54,7 @@
 
 ---
 
-## 🛡️ Architecture & Security Isolation
+## Architecture & Security Isolation
 
 The laboratory enforces **strict separation of concerns** across independent sovereign memory spaces and filesystem boundaries. Secret keys never transit public buses under any condition:
 
@@ -66,7 +66,7 @@ flowchart TB
     end
 
     subgraph Public_Bus ["Untrusted Communication Medium"]
-        PubChan["Shared_Files/ABshared.json\n• Public Keys (Alice & Bob)\n• KEM Encapsulation Ciphertext\n• AES-256-GCM Ciphertext + Nonce + Tag\n⚠️ ZERO PRIVATE SECRETS STORED"]
+        PubChan["Shared_Files/ABshared.json\n• Public Keys (Alice & Bob)\n• KEM Encapsulation Ciphertext\n• AES-256-GCM Ciphertext + Nonce + Tag\n ZERO PRIVATE SECRETS STORED"]
         QKDChan["Shared_Files/qkd_channel/\n• HMAC-SHA256 Authenticated Frames\n• Parity Exchange & Cascade Reconciliation"]
     end
 
@@ -96,7 +96,7 @@ flowchart TB
 
 ---
 
-## 🚀 Quick Start & Installation
+## Quick Start & Installation
 
 ### 1. Prerequisites
 - **Python 3.10+** (Python 3.10, 3.11, or 3.12 recommended)
@@ -116,7 +116,7 @@ python3 main.py
 
 ---
 
-## 💻 Command-Line Interface & Execution Modes
+## Command-Line Interface & Execution Modes
 
 QSecure provides rich non-interactive automation flags for automated experimentation, benchmarks, and continuous integration:
 
@@ -146,36 +146,36 @@ usage: main.py [-h] [--benchmark] [--protocol {CKD,MKD,QKD}] [--message MESSAGE]
 
 ---
 
-## 📊 Empirical Research Findings (RQ1 – RQ8)
+## Empirical Research Findings (RQ1 – RQ8)
 
 QSecure empirically investigates eight foundational research questions governing quantum-resilient key exchange:
 
-### ⏱️ RQ1: Key Establishment Time
+### RQ1: Key Establishment Time
 - **ML-KEM-768**: **~0.4 ms** total establishment time. Extremely fast vector polynomial operations in ring $R_q = \mathbb{Z}_q[X]/(X^{256} + 1)$ (Keygen: 0.08 ms, Encaps: 0.14 ms, Decaps: 0.21 ms).
 - **CKD (X25519)**: **~1.2 ms**. Dominated by constant-time Montgomery ladder scalar point multiplication and HKDF-SHA256 expansion.
 - **QKD (BB84)**: **~8,200 ms**. Dominated by quantum state simulation, multi-pass interactive Cascade parity checking, and Toeplitz matrix multiplication.
 
-### 📦 RQ2: Communication Payload Overhead
+### RQ2: Communication Payload Overhead
 - **CKD**: **64 bytes** total public exchange (32B Alice public key + 32B Bob public key).
 - **ML-KEM-768**: **2,272 bytes** total payload (1,184B encapsulation public key + 1,088B ciphertext).
 - **QKD (BB84)**: **6,000 transmitted qubits** across the quantum channel + **~135 KB** of classical JSON parity frames exchanged over **11 sequential RTTs**.
 
-### 💻 RQ3 & RQ4: Computational Cost & Memory Footprint
+### RQ3 & RQ4: Computational Cost & Memory Footprint
 - **CPU Resource Consumption**: ML-KEM consumes the least CPU time (~0.4 ms), followed by CKD (~1.1 ms) and software-simulated QKD (~8.1 s).
 - **Heap Allocation (RSS)**: CKD and ML-KEM allocate $<100\text{ KB}$ of transient memory. QKD allocates **15–30 MB** for state vectors, circuit measurement collapse tracking, and reconciliation buffers.
 
-### 🌐 RQ5: Latency Scaling Across Network Delays
+### RQ5: Latency Scaling Across Network Delays
 - **Single RTT Protocols (CKD, ML-KEM)**: Key establishment requires exactly **1 RTT** ($2 \times \text{one-way delay}$). At 100 ms one-way delay, establishment completes in ~201 ms.
 - **Multi-Pass Protocols (QKD Cascade)**: Requires **~11 sequential round-trips**. At 100 ms one-way delay, flight latency introduces **+2,200 ms of cumulative waiting**, rendering interactive QKD reconciliation highly sensitive to physical distance.
 
-### 🕸️ RQ6: Multi-Node Mesh Scalability
+### RQ6: Multi-Node Mesh Scalability
 In a 32-node Full Mesh network ($K_{32} = 496$ pairwise communication links):
 - **ML-KEM-768**: Establishes all 496 shared secrets in **~220 ms CPU time** using **~1.1 MB** total network data over commodity internet.
 - **QKD (BB84)**: Requires **496 dedicated physical dark fiber paths**, **~3 million transmitted qubits**, and **~68 minutes** of sequential execution, exposing severe infrastructure scaling barriers.
 
 ---
 
-## ⚔️ Attack Simulations & Security Threat Model
+## Attack Simulations & Security Threat Model
 
 Run the adversarial test harness using `python3 main.py --attacks`:
 
@@ -204,7 +204,7 @@ sequenceDiagram
     Alice->>Bob: Sifting: Announce Measurement Bases
     Alice->>Bob: Parameter Estimation (Sample Subset)
     Note over Alice,Bob: QBER Measured = 25.1% (Exceeds 11% Threshold!)
-    Bob-->>Alice: 🚨 THRESHOLD EXCEEDED: PROTOCOL ABORT! Zero keys derived.
+    Bob-->>Alice: THRESHOLD EXCEEDED: PROTOCOL ABORT! Zero keys derived.
 
     Note over Alice,Bob: SCENARIO 2: Ciphertext Bit-Flipping on AES-256-GCM
     Alice->>Eve: Transmit Ciphertext C || Nonce || Tag
@@ -222,7 +222,7 @@ sequenceDiagram
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 CSDQKD/
@@ -233,8 +233,6 @@ CSDQKD/
 ├── IEEE_Research_Paper_QSecure.tex     # LaTeX manuscript ready for IEEE publication
 ├── technical_details.md                # Comprehensive A-to-Z technical engineering manual
 ├── assets/                             # Visual branding and graphical assets
-│   ├── qsecure_logo.jpg                # 3D squircle quantum shield emblem
-│   └── qsecure_banner.jpg              # High-resolution widescreen laboratory hero banner
 ├── Node_A/                             # Sovereign Alice endpoint
 │   ├── AB.py                           # Alice's cryptographic logic & state engine
 │   └── secretAB.json                   # Alice's isolated local keystore (Zero public exposure)
@@ -259,19 +257,11 @@ CSDQKD/
 
 ---
 
-## 🔬 Citation & Research Paper
+## Citation & Research Paper
 
 If you utilize QSecure in academic research, security audits, or benchmarking publications, please cite the research paper:
 
-```bibtex
-@article{aarav2026qsecure,
-  title={QSecure: Empirical Comparative Evaluation of Classical, Post-Quantum, and Quantum Key Distribution Protocols},
-  author={Aarav and Contributors},
-  journal={IEEE Transactions on Quantum Engineering and Cryptography},
-  year={2026},
-  url={https://github.com/aarav/CSDQKD}
-}
-```
+** To be updated **
 
 ---
 
